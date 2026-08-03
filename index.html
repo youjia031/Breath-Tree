@@ -1,711 +1,846 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>呼吸養樹 · Breath Tree</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        /* ===== 全域 & 字體 ===== */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
         body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background: #1a3a2a;
+            margin: 0;
             min-height: 100vh;
+            background: linear-gradient(145deg, #0b1a1a 0%, #1a2f2a 100%);
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            font-family: 'Segoe UI', 'PingFang TC', system-ui, sans-serif;
+            padding: 16px;
         }
-        .container {
-            max-width: 520px;
+        .game-wrapper {
+            max-width: 800px;
             width: 100%;
-            background: white;
-            border-radius: 24px;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-        }
-        h1 { color: #1a3a2a; font-size: 28px; }
-        h1 span { color: #4a8a5a; }
-
-        .tree {
-            font-size: 80px;
-            margin: 15px 0;
-            transition: all 0.3s;
-            display: inline-block;
-        }
-        .tree.growing { animation: shake 0.5s; }
-        @keyframes shake {
-            0%, 100% { transform: scale(1); }
-            40% { transform: scale(1.2); }
+            background: rgba(30, 50, 45, 0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 56px;
+            padding: 28px 24px 32px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 0 1px #5a7a6a inset;
+            transition: 0.3s;
         }
 
-        .progress {
-            width: 100%;
-            height: 10px;
-            background: #e8ece8;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        .progress-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #5a9a4a, #8aca6a);
-            border-radius: 10px;
-            transition: width 0.5s;
-        }
-
-        .stats {
+        /* ===== 標題列 ===== */
+        .header {
             display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin: 12px 0;
-            font-size: 14px;
+            justify-content: space-between;
+            align-items: center;
+            color: #d4e8d0;
+            padding: 0 6px 12px 6px;
+            border-bottom: 1px solid #3b5a4e;
             flex-wrap: wrap;
         }
-        .stats span {
-            background: #f0f2f5;
-            padding: 4px 14px;
-            border-radius: 20px;
-        }
-        .stats strong { color: #1a4a3a; }
-
-        button {
-            padding: 10px 24px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
+        .title {
+            font-size: 1.5rem;
             font-weight: 600;
-            cursor: pointer;
-            margin: 4px;
-            transition: all 0.2s;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #c0e0b0, #f0e8b0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        button:hover { transform: scale(1.05); }
-        button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .stats {
+            display: flex;
+            gap: 24px;
+            font-size: 0.95rem;
+            background: #1f332e;
+            padding: 6px 18px;
+            border-radius: 60px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+        }
+        .stats span {
+            color: #b8d0c0;
+        }
+        .stats strong {
+            color: #f5e79a;
+            font-weight: 600;
+        }
 
-        .btn-blow { background: #2a7a3a; color: white; }
-        .btn-blow:hover:not(:disabled) { background: #3a8a4a; }
-        .btn-csv { background: #2a5a7a; color: white; }
-        .btn-csv:hover { background: #3a6a8a; }
-        .btn-json { background: #6a2a7a; color: white; }
-        .btn-json:hover { background: #7a3a8a; }
-        .btn-reset { background: #7a3a2a; color: white; }
-        .btn-reset:hover { background: #8a4a3a; }
-        .btn-diagnose { background: #8a7a2a; color: white; }
-        .btn-diagnose:hover { background: #9a8a3a; }
-        .btn-debug { background: #3a4a5a; color: white; }
-        .btn-debug:hover { background: #4a5a6a; }
-
-        .status {
-            margin-top: 12px;
-            color: #5a7a5a;
-            font-size: 14px;
-            min-height: 24px;
-        }
-        .bloom-text {
-            color: #f5c542;
-            font-size: 20px;
-            font-weight: bold;
-            margin-top: 8px;
-        }
-        .debug-log {
-            background: #0f1a0f;
-            border-radius: 10px;
-            padding: 10px;
-            margin-top: 12px;
-            font-family: monospace;
-            font-size: 11px;
-            color: #8aaa7a;
-            max-height: 180px;
-            overflow-y: auto;
-            text-align: left;
-            display: none;
-            border: 1px solid #2a4a2a;
-        }
-        .debug-log.show { display: block; }
-        .debug-log .entry { padding: 2px 0; border-bottom: 1px solid #1a2a1a; }
-        .debug-log .time { color: #4a6a4a; }
-
-        /* 降噪狀態指示 */
-        .filter-indicator {
+        /* ===== 樹的畫布 ===== */
+        .tree-area {
+            position: relative;
+            margin: 18px 0 12px 0;
+            background: radial-gradient(circle at 30% 80%, #1f3d30, #0f1f1a);
+            border-radius: 120px 120px 60px 60px;
+            padding: 20px 10px 10px 10px;
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.7);
+            min-height: 360px;
             display: flex;
             justify-content: center;
-            gap: 20px;
-            font-size: 13px;
-            color: #5a7a5a;
-            margin: 6px 0;
+            align-items: flex-end;
+            transition: 0.2s;
         }
-        .filter-indicator .dot {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 4px;
-            vertical-align: middle;
+        .tree-svg-container {
+            width: 100%;
+            max-height: 320px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
         }
-        .filter-indicator .dot.idle { background: #7f8c8d; }
-        .filter-indicator .dot.detecting { background: #f5c542; animation: pulse 0.5s infinite; }
-        .filter-indicator .dot.active { background: #2ecc71; box-shadow: 0 0 16px rgba(46,204,113,0.5); }
-        .filter-indicator .dot.bloom { background: #f5c542; box-shadow: 0 0 16px rgba(245,197,66,0.6); }
+        #treeSvg {
+            width: 100%;
+            max-width: 340px;
+            height: auto;
+            filter: drop-shadow(0 8px 12px rgba(0,20,10,0.6));
+            transition: transform 0.2s;
+        }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.8); }
+        /* ===== 休息覆蓋層 ===== */
+        .rest-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 25, 20, 0.75);
+            backdrop-filter: blur(3px);
+            border-radius: 120px 120px 60px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #e6f0e0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+        }
+        .rest-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .rest-big {
+            font-size: 4.2rem;
+            font-weight: 800;
+            letter-spacing: 10px;
+            background: rgba(0,0,0,0.3);
+            padding: 0 20px;
+            border-radius: 80px;
+            text-shadow: 0 0 20px #c0e0b0;
+            color: #f0fae8;
+        }
+        .rest-countdown {
+            font-size: 2.8rem;
+            font-weight: 300;
+            margin-top: 6px;
+            background: rgba(0,0,0,0.25);
+            padding: 0 30px;
+            border-radius: 60px;
+            backdrop-filter: blur(2px);
+        }
+        .petal-fall {
+            position: absolute;
+            font-size: 1.2rem;
+            opacity: 0.5;
+            color: #f5eac0;
+            animation: fall 8s infinite linear;
+        }
+
+        /* ===== 控制與狀態 ===== */
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin: 16px 0 8px 0;
+        }
+        .breath-indicator {
+            background: #1d332c;
+            padding: 6px 18px 6px 12px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #c0d8c8;
+            font-weight: 500;
+            box-shadow: inset 0 2px 6px #0a1410;
+        }
+        .meter-bar {
+            width: 100px;
+            height: 10px;
+            background: #2d4a3e;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .meter-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #b0e0b0, #f0e8a0);
+            border-radius: 20px;
+            transition: width 0.08s;
+        }
+        .key-hint {
+            background: #273f38;
+            padding: 6px 16px;
+            border-radius: 80px;
+            color: #c8e0d0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .key-hint kbd {
+            background: #0c1c16;
+            padding: 4px 10px;
+            border-radius: 30px;
+            color: #f5e79a;
+            font-weight: 600;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            background: #2f4f42;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 60px;
+            color: #e6f0e0;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 0 #1a2e26, inset 0 1px 2px #6a8a7a;
+            transition: 0.08s linear;
+        }
+        .btn:active {
+            transform: scale(0.94);
+            box-shadow: 0 0 0 #1a2e26;
+        }
+        .btn-connect {
+            background: #3d6a58;
+            color: white;
+        }
+        .btn-reset {
+            background: #5a3e3a;
+        }
+
+        .log-area {
+            margin-top: 16px;
+            font-size: 0.75rem;
+            color: #6a8a7a;
+            background: #14231e;
+            padding: 8px 14px;
+            border-radius: 40px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            border: 1px solid #2d4a3a;
+        }
+
+        /* ===== 動畫 ===== */
+        @keyframes fall {
+            0% { transform: translateY(-30px) rotate(0deg); opacity: 0.6; }
+            100% { transform: translateY(280px) rotate(40deg); opacity: 0; }
+        }
+        .grow-glow {
+            animation: glowPulse 0.7s ease 2;
+        }
+        @keyframes glowPulse {
+            0% { filter: drop-shadow(0 0 0 #b0e8a0); }
+            50% { filter: drop-shadow(0 0 40px #d0f0b0) drop-shadow(0 0 80px #b0e8a0); }
+            100% { filter: drop-shadow(0 0 0 #b0e8a0); }
+        }
+        .bloom {
+            animation: bloomBurst 1s ease;
+        }
+        @keyframes bloomBurst {
+            0% { transform: scale(1); filter: drop-shadow(0 0 0 #f5e79a); }
+            40% { transform: scale(1.12); filter: drop-shadow(0 0 70px #f5e080); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 20px #f5e79a); }
+        }
+
+        /* ===== 上傳狀態指示 ===== */
+        .sync-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 8px;
+            background: #4a6a5a;
+            transition: 0.3s;
+        }
+        .sync-status.uploading {
+            background: #f5e79a;
+            box-shadow: 0 0 10px #f5e79a;
+        }
+        .sync-status.success {
+            background: #7acf8a;
+        }
+        .sync-status.error {
+            background: #cf7a7a;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>🌳 <span>Breath</span> Tree</h1>
-
-    <div class="tree" id="treeEmoji">🌱</div>
-
-    <div class="progress">
-        <div class="progress-fill" id="progressFill"></div>
+<div class="game-wrapper">
+    <!-- 標題 + 狀態 -->
+    <div class="header">
+        <div class="title">🌳 Breath Tree</div>
+        <div class="stats">
+            <span>🌱 階 <strong id="stageDisplay">0</strong></span>
+            <span>🌸 訓練 <strong id="trainCountDisplay">0</strong></span>
+            <span><span class="sync-status" id="syncStatus"></span></span>
+        </div>
     </div>
 
-    <div class="stats">
-        <span>🌳 階段: <strong id="stageDisplay">0 / 8</strong></span>
-        <span>💨 氣流: <strong id="flowDisplay">0%</strong></span>
-        <span>📁 紀錄: <strong id="recordCount">0</strong></span>
+    <!-- 樹區 -->
+    <div class="tree-area" id="treeArea">
+        <div class="tree-svg-container">
+            <svg id="treeSvg" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg">
+                <g id="treeGroup">
+                    <rect id="trunk" x="88" y="160" width="24" height="90" fill="#6a4e3a" rx="6" />
+                    <circle id="crown1" cx="100" cy="110" r="40" fill="#2d6a3a" />
+                    <circle id="crown2" cx="70" cy="140" r="32" fill="#2a7a3a" />
+                    <circle id="crown3" cx="130" cy="140" r="32" fill="#2a7a3a" />
+                    <circle id="crown4" cx="100" cy="70" r="36" fill="#3a8a4a" />
+                    <circle id="crown5" cx="70" cy="100" r="28" fill="#3a8a4a" />
+                    <circle id="crown6" cx="130" cy="100" r="28" fill="#3a8a4a" />
+                    <g id="flowerGroup" opacity="0">
+                        <circle cx="70" cy="80" r="8" fill="#f5d0b0" />
+                        <circle cx="130" cy="80" r="8" fill="#f5d0b0" />
+                        <circle cx="100" cy="50" r="10" fill="#f5d0b0" />
+                        <circle cx="50" cy="110" r="7" fill="#f5d0b0" />
+                        <circle cx="150" cy="110" r="7" fill="#f5d0b0" />
+                    </g>
+                </g>
+            </svg>
+        </div>
+
+        <!-- 休息覆蓋層 -->
+        <div class="rest-overlay" id="restOverlay">
+            <div class="rest-big">休 息</div>
+            <div class="rest-countdown" id="restCountdown">3</div>
+        </div>
     </div>
 
-    <!-- 降噪狀態 -->
-    <div class="filter-indicator">
-        <span>
-            <span class="dot idle" id="filterDot"></span>
-            <span id="filterStatusText">等待吹氣</span>
-        </span>
-        <span>信心: <strong id="confidenceDisplay">0%</strong></span>
-        <span>窗口: <strong id="windowDisplay">0/3</strong></span>
+    <!-- 控制列 -->
+    <div class="control-panel">
+        <div class="breath-indicator">
+            <span>💨 氣流</span>
+            <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+            <span id="breathValue">0</span>
+        </div>
+        <div class="key-hint">
+            <kbd>↓</kbd> 按住吐氣 (越久越強)
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-connect" id="connectBtn">🔌 連線 ESP32</button>
+            <button class="btn btn-reset" id="resetTreeBtn">🌱 重置樹</button>
+        </div>
     </div>
 
-    <div>
-        <button class="btn-blow" id="btnBlow">💨 吹氣</button>
-        <button class="btn-reset" id="btnReset">🌱 重種</button>
-    </div>
-    <div style="margin-top:8px;">
-        <button class="btn-csv" id="btnCSV">📊 CSV</button>
-        <button class="btn-json" id="btnJSON">📄 JSON</button>
-        <button class="btn-diagnose" id="btnDiagnose">🔍 診斷</button>
-        <button class="btn-debug" id="btnDebug">🐛 除錯</button>
-    </div>
-
-    <div class="status" id="statusMsg">💡 按「吹氣」按鈕或按 ↓ 鍵</div>
-    <div id="bloomMsg" class="bloom-text"></div>
-
-    <div class="debug-log" id="debugLog"></div>
+    <!-- 日誌 -->
+    <div class="log-area" id="logArea">🌿 系統就緒 · 按住 ↓ 或接上 ESP32 開始吐氣</div>
 </div>
 
 <script>
-// ============================================================
-//  除錯日誌
-// ============================================================
-let debugVisible = false;
+    (function() {
+        // ==================== 核心狀態 ====================
+        const STATE = {
+            stage: 0,
+            maxStage: 8,
+            trainingCount: 0,
+            isResting: false,
+            restSeconds: 3,
+            restTimer: null,
+            isGrowing: false,
+            growTimer: null,
+            breathValue: 0,
+            threshold: 45,
+            keyPressed: false,
+            keyStartTime: 0,
+            port: null,
+            reader: null,
+            serialConnected: false,
+            sessionId: null,
+            syncQueue: [],
+            isSyncing: false,
+        };
 
-function addDebug(msg, color = '#8aaa7a') {
-    const log = document.getElementById('debugLog');
-    const entry = document.createElement('div');
-    entry.className = 'entry';
-    const time = new Date().toLocaleTimeString();
-    entry.innerHTML = `<span class="time">[${time}]</span> <span style="color:${color}">${msg}</span>`;
-    log.appendChild(entry);
-    log.scrollTop = log.scrollHeight;
-    console.log('[Debug]', msg);
-}
+        // ==================== 後端 API 配置 ====================
+        // 在 Vercel 部署時，這個路徑會對應到 /api/log 的 Serverless Function
+        const API_URL = '/api/log';
 
-document.getElementById('btnDebug').addEventListener('click', () => {
-    const log = document.getElementById('debugLog');
-    debugVisible = !debugVisible;
-    log.classList.toggle('show');
-    document.getElementById('btnDebug').textContent = debugVisible ? '🐛 關閉' : '🐛 除錯';
-    if (debugVisible) addDebug('📋 除錯模式開啟');
-});
-
-// ============================================================
-//  設定
-// ============================================================
-const MAX_STAGES = 8;
-
-// ============================================================
-//  降噪機制（從你的範本移植）
-// ============================================================
-class NoiseFilter {
-    constructor() {
-        this.windowSize = 3;
-        this.minTrueCount = 2;
-        this.minEnergy = 800000;
-        this.maxHighFreq = 50000;
-        this.windowHistory = [];
-        this.lastFFT = null;
-
-        for (let i = 0; i < this.windowSize; i++) {
-            this.windowHistory.push(false);
-        }
-    }
-
-    // 解析 FFT 數據
-    parseFFT(line) {
-        if (!line.includes('[FFT]')) return null;
-        const bands = {};
-        const regex = /(\d+)k\s*:\s*([-+]?\d*\.?\d+)/g;
-        let m;
-        while ((m = regex.exec(line)) !== null) {
-            const k = parseInt(m[1]);
-            const v = parseFloat(m[2]);
-            if (k >= 1 && k <= 20) {
-                bands[k] = v;
+        // ==================== 日誌上傳 ====================
+        async function uploadLog(eventType, data) {
+            if (!STATE.sessionId) {
+                STATE.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
             }
-        }
-        return Object.keys(bands).length > 0 ? bands : null;
-    }
 
-    // 解析 DETECT 數據
-    parseDetect(line) {
-        if (!line.includes('[DETECT]')) return null;
+            const payload = {
+                sessionId: STATE.sessionId,
+                timestamp: new Date().toISOString(),
+                eventType: eventType,
+                data: {
+                    ...data,
+                    stage: STATE.stage,
+                    trainingCount: STATE.trainingCount,
+                    breathValue: STATE.breathValue,
+                }
+            };
 
-        const flowMatch = line.match(/Flow\s*=\s*(YES|no)/i);
-        if (!flowMatch) return null;
-
-        const flowYes = flowMatch[1].toUpperCase() === 'YES';
-
-        let est = 0.0;
-        const estMatch = line.match(/Est\s*=\s*([-+]?\d*\.?\d+)/);
-        if (estMatch) est = parseFloat(estMatch[1]) || 0;
-
-        let lowEnergy = 0;
-        const lowMatch = line.match(/LowEnergy\s*=\s*([-+]?\d+)/);
-        if (lowMatch) lowEnergy = parseInt(lowMatch[1]) || 0;
-
-        return { flowYes, est, lowEnergy };
-    }
-
-    // 應用降噪
-    apply(raw, fftData, lowEnergy) {
-        // 1. 檢查是否為候選
-        let isCandidate = false;
-        if (raw > 0.3 || (lowEnergy > this.minEnergy && raw > 0.0)) {
-            isCandidate = true;
-        }
-
-        // 2. FFT 過濾：高頻噪音
-        if (fftData) {
-            const freq1k = fftData[1] || 0;
-            const freq8k = fftData[8] || 0;
-            if (freq1k > this.minEnergy && freq8k < this.maxHighFreq) {
-                isCandidate = false;
+            // 加入佇列
+            STATE.syncQueue.push(payload);
+            
+            // 如果沒有正在同步，立即處理
+            if (!STATE.isSyncing) {
+                processSyncQueue();
             }
         }
 
-        // 3. 滑動窗口多數決
-        this.windowHistory.shift();
-        this.windowHistory.push(isCandidate);
+        async function processSyncQueue() {
+            if (STATE.syncQueue.length === 0) {
+                STATE.isSyncing = false;
+                return;
+            }
 
-        const trueCount = this.windowHistory.filter(x => x === true).length;
-        const passed = trueCount >= this.minTrueCount;
-        const confidence = Math.round((trueCount / this.windowSize) * 100);
+            STATE.isSyncing = true;
+            const payload = STATE.syncQueue[0];
+            
+            try {
+                updateSyncStatus('uploading');
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
 
-        return { passed, confidence, trueCount, isCandidate };
-    }
-}
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
 
-const filter = new NoiseFilter();
-
-// ============================================================
-//  狀態
-// ============================================================
-let state = {
-    stage: 0,
-    recordCount: 0,
-    isResting: false,
-    restTimer: null,
-    isFullBloom: false,
-    blowCount: 0,
-    currentFlow: 0,
-    treeIndex: 1,
-    confidence: 0,
-    trueCount: 0
-};
-
-// ============================================================
-//  DOM
-// ============================================================
-const treeEmoji = document.getElementById('treeEmoji');
-const progressFill = document.getElementById('progressFill');
-const stageDisplay = document.getElementById('stageDisplay');
-const flowDisplay = document.getElementById('flowDisplay');
-const recordCountDisplay = document.getElementById('recordCount');
-const statusMsg = document.getElementById('statusMsg');
-const bloomMsg = document.getElementById('bloomMsg');
-const filterDot = document.getElementById('filterDot');
-const filterStatusText = document.getElementById('filterStatusText');
-const confidenceDisplay = document.getElementById('confidenceDisplay');
-const windowDisplay = document.getElementById('windowDisplay');
-
-const btnBlow = document.getElementById('btnBlow');
-const btnReset = document.getElementById('btnReset');
-const btnCSV = document.getElementById('btnCSV');
-const btnJSON = document.getElementById('btnJSON');
-const btnDiagnose = document.getElementById('btnDiagnose');
-
-// ============================================================
-//  UI 更新
-// ============================================================
-function updateUI() {
-    const p = state.stage / MAX_STAGES;
-    progressFill.style.width = (p * 100) + '%';
-    stageDisplay.textContent = `${state.stage} / ${MAX_STAGES}`;
-
-    const treeEmojis = ['🌱', '🌿', '🌳', '🌳', '🌳', '🌳', '🌳', '🌸'];
-    if (state.stage >= MAX_STAGES) {
-        treeEmoji.textContent = '🌸';
-        if (!state.isFullBloom) {
-            state.isFullBloom = true;
-            bloomMsg.textContent = '🎉 開花啦！ 🌸';
-            btnBlow.disabled = true;
-            btnBlow.style.opacity = '0.5';
-            statusMsg.textContent = '🌸 開花完成！點「重種」重新開始';
-            addDebug('🌸 開花啦！', '#ffd966');
+                const result = await response.json();
+                console.log('[Sync] 上傳成功:', result);
+                
+                // 上傳成功，從佇列移除
+                STATE.syncQueue.shift();
+                updateSyncStatus('success');
+                
+                // 繼續處理下一個
+                setTimeout(() => processSyncQueue(), 100);
+                
+            } catch (error) {
+                console.error('[Sync] 上傳失敗:', error);
+                updateSyncStatus('error');
+                
+                // 保留在佇列中，稍後重試
+                // 5秒後重試
+                setTimeout(() => {
+                    STATE.isSyncing = false;
+                    processSyncQueue();
+                }, 5000);
+            }
         }
-    } else {
-        treeEmoji.textContent = treeEmojis[state.stage] || '🌱';
-        state.isFullBloom = false;
-        btnBlow.disabled = false;
-        btnBlow.style.opacity = '1';
-    }
-}
 
-function updateFilterStatus(passed, confidence, trueCount, isCandidate) {
-    confidenceDisplay.textContent = confidence + '%';
-    windowDisplay.textContent = `${trueCount}/${filter.windowSize}`;
-
-    if (state.isFullBloom) {
-        filterDot.className = 'dot bloom';
-        filterStatusText.textContent = '🌸 已開花';
-        return;
-    }
-
-    if (passed && state.currentFlow > 0.3) {
-        filterDot.className = 'dot active';
-        filterStatusText.textContent = '💨 吐氣中';
-    } else if (isCandidate) {
-        filterDot.className = 'dot detecting';
-        filterStatusText.textContent = '🔍 偵測中';
-    } else {
-        filterDot.className = 'dot idle';
-        filterStatusText.textContent = '⏸️ 等待吹氣';
-    }
-}
-
-function updateFlowDisplay(value) {
-    state.currentFlow = value;
-    flowDisplay.textContent = Math.round(value * 100) + '%';
-}
-
-// ============================================================
-//  後端 API
-// ============================================================
-async function updateRecordCount() {
-    try {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        state.recordCount = data.total || 0;
-        recordCountDisplay.textContent = state.recordCount;
-        return data;
-    } catch (e) {
-        addDebug(`❌ 讀取失敗: ${e.message}`, '#d46a6a');
-        return null;
-    }
-}
-
-async function recordBlow(blowValue, isTreeGrow) {
-    try {
-        const res = await fetch('/api/blow', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                blowValue: blowValue,
-                isTreeGrow: isTreeGrow
-            })
-        });
-        const data = await res.json();
-        state.recordCount = data.total || 0;
-        recordCountDisplay.textContent = state.recordCount;
-        return data;
-    } catch (e) {
-        addDebug(`❌ 記錄失敗: ${e.message}`, '#d46a6a');
-        return null;
-    }
-}
-
-// ============================================================
-//  休息計時器
-// ============================================================
-function startRest() {
-    if (state.isResting) return;
-    state.isResting = true;
-    let countdown = 2;
-    statusMsg.textContent = `😴 休息 ${countdown}s...`;
-    btnBlow.disabled = true;
-    btnBlow.style.opacity = '0.5';
-
-    state.restTimer = setInterval(() => {
-        countdown--;
-        if (countdown <= 0) {
-            clearInterval(state.restTimer);
-            state.isResting = false;
-            btnBlow.disabled = false;
-            btnBlow.style.opacity = '1';
-            statusMsg.textContent = '😮‍💨 可以吐氣了！';
-        } else {
-            statusMsg.textContent = `😴 休息 ${countdown}s...`;
+        function updateSyncStatus(status) {
+            const indicator = document.getElementById('syncStatus');
+            indicator.className = 'sync-status';
+            if (status === 'uploading') {
+                indicator.classList.add('uploading');
+            } else if (status === 'success') {
+                indicator.classList.add('success');
+                setTimeout(() => {
+                    indicator.className = 'sync-status';
+                }, 2000);
+            } else if (status === 'error') {
+                indicator.classList.add('error');
+                setTimeout(() => {
+                    indicator.className = 'sync-status';
+                }, 3000);
+            }
         }
-    }, 1000);
-}
 
-// ============================================================
-//  吹氣處理（整合降噪）
-// ============================================================
-async function handleBlow(force) {
-    const blow = Math.min(1, Math.max(0, force));
-    updateFlowDisplay(blow);
+        // ==================== 記錄各種事件 ====================
+        function logEvent(eventType, extraData = {}) {
+            uploadLog(eventType, extraData);
+        }
 
-    if (state.isFullBloom) {
-        updateFilterStatus(false, 100, 3, false);
-        return;
-    }
+        // ==================== DOM 參考 ====================
+        const $ = id => document.getElementById(id);
+        const treeSvg = $('treeSvg');
+        const trunk = $('trunk');
+        const crown1 = $('crown1');
+        const crown2 = $('crown2');
+        const crown3 = $('crown3');
+        const crown4 = $('crown4');
+        const crown5 = $('crown5');
+        const crown6 = $('crown6');
+        const flowerGroup = $('flowerGroup');
+        const stageDisplay = $('stageDisplay');
+        const trainCountDisplay = $('trainCountDisplay');
+        const meterFill = $('meterFill');
+        const breathValue = $('breathValue');
+        const logArea = $('logArea');
+        const restOverlay = $('restOverlay');
+        const restCountdown = $('restCountdown');
+        const treeArea = $('treeArea');
+        const connectBtn = $('connectBtn');
+        const resetTreeBtn = $('resetTreeBtn');
 
-    if (state.isResting) {
-        statusMsg.textContent = '⏳ 休息中，請稍候...';
-        return;
-    }
+        // ==================== 輔助 ====================
+        function log(msg) {
+            logArea.textContent = '🌱 ' + msg;
+            console.log('[BreathTree]', msg);
+        }
 
-    // 模擬 FFT 和 LowEnergy 數據（因為沒有真實 ESP32）
-    // 真實使用時，這些數據會從 ESP32 的 [FFT] 和 [DETECT] 解析
-    const mockFFT = {
-        1: 100000 + Math.random() * 500000,
-        8: 20000 + Math.random() * 30000
-    };
-    const mockLowEnergy = 500000 + Math.random() * 1000000;
+        // 更新樹的外觀
+        function updateTree() {
+            const s = Math.min(STATE.stage, STATE.maxStage);
+            const ratio = s / STATE.maxStage;
 
-    // 應用降噪
-    const result = filter.apply(blow, mockFFT, mockLowEnergy);
-    state.confidence = result.confidence;
-    state.trueCount = result.trueCount;
+            const trunkH = 90 + ratio * 50;
+            trunk.setAttribute('height', trunkH);
+            trunk.setAttribute('y', 260 - trunkH - 20);
 
-    updateFilterStatus(result.passed, result.confidence, result.trueCount, result.isCandidate);
+            const r1 = Math.round(40 * (0.7 + ratio * 0.5));
+            const r2 = Math.round(32 * (0.7 + ratio * 0.5));
+            const r3 = Math.round(32 * (0.7 + ratio * 0.5));
+            const r4 = Math.round(36 * (0.7 + ratio * 0.6));
+            const r5 = Math.round(28 * (0.7 + ratio * 0.5));
+            const r6 = Math.round(28 * (0.7 + ratio * 0.5));
 
-    const isTreeGrow = result.passed && blow >= 0.5;
+            crown1.setAttribute('r', r1);
+            crown2.setAttribute('r', r2);
+            crown3.setAttribute('r', r3);
+            crown4.setAttribute('r', r4);
+            crown5.setAttribute('r', r5);
+            crown6.setAttribute('r', r6);
 
-    addDebug(`💨 吹氣: ${Math.round(blow*100)}% | 信心: ${result.confidence}% | ${isTreeGrow ? '🌱 達標' : '⏸️ 未達標'}`, '#8aaa7a');
+            const offsetY = -ratio * 18;
+            crown1.setAttribute('cy', 110 + offsetY);
+            crown2.setAttribute('cy', 140 + offsetY);
+            crown3.setAttribute('cy', 140 + offsetY);
+            crown4.setAttribute('cy', 70 + offsetY);
+            crown5.setAttribute('cy', 100 + offsetY);
+            crown6.setAttribute('cy', 100 + offsetY);
 
-    // 只有通過降噪才記錄
-    if (result.passed) {
-        await recordBlow(Math.round(blow * 100), isTreeGrow);
-    }
-
-    if (isTreeGrow && result.passed) {
-        state.blowCount++;
-        if (state.blowCount >= 2) {
-            state.blowCount = 0;
-            state.stage = Math.min(state.stage + 1, MAX_STAGES);
-            treeEmoji.classList.add('growing');
-            setTimeout(() => treeEmoji.classList.remove('growing'), 500);
-            updateUI();
-            addDebug(`🌱 樹長大! 階段 ${state.stage}/${MAX_STAGES}`, '#f5c542');
-
-            if (state.stage >= MAX_STAGES) {
-                state.isFullBloom = true;
-                updateUI();
-                bloomMsg.textContent = '🎉 開花啦！ 🌸';
-                btnBlow.disabled = true;
-                btnBlow.style.opacity = '0.5';
-                statusMsg.textContent = '🌸 開花完成！點「重種」重新開始';
+            const bloom = (STATE.stage >= STATE.maxStage);
+            flowerGroup.setAttribute('opacity', bloom ? '1' : '0');
+            if (bloom) {
+                flowerGroup.setAttribute('class', 'bloom');
+                document.querySelectorAll('#flowerGroup circle').forEach(c => {
+                    c.setAttribute('fill', '#f5c8a0');
+                });
             } else {
-                startRest();
+                flowerGroup.setAttribute('class', '');
             }
-        } else {
-            statusMsg.textContent = '💨 再吹一次！';
-            addDebug('💨 需要再吹一次', '#8aaa7a');
-        }
-    } else if (!result.passed) {
-        statusMsg.textContent = '🔍 過濾雜訊中，請持續吹氣...';
-    }
-}
 
-// ============================================================
-//  重置
-// ============================================================
-function resetTree() {
-    if (state.restTimer) {
-        clearInterval(state.restTimer);
-        state.isResting = false;
-    }
-    state.stage = 0;
-    state.isFullBloom = false;
-    state.blowCount = 0;
-    state.treeIndex += 1;
-    state.currentFlow = 0;
-
-    // 重置降噪窗口
-    filter.windowHistory = [];
-    for (let i = 0; i < filter.windowSize; i++) {
-        filter.windowHistory.push(false);
-    }
-
-    btnBlow.disabled = false;
-    btnBlow.style.opacity = '1';
-    bloomMsg.textContent = '';
-    updateUI();
-    updateFlowDisplay(0);
-    updateFilterStatus(false, 0, 0, false);
-    statusMsg.textContent = '🌱 新樹苗！';
-    addDebug('🌱 新樹苗', '#8fc87a');
-    updateRecordCount();
-}
-
-// ============================================================
-//  匯出功能
-// ============================================================
-async function exportCSV() {
-    try {
-        btnCSV.disabled = true;
-        btnCSV.textContent = '⏳ 下載中...';
-        addDebug('📊 匯出 CSV...', '#f5c542');
-
-        const res = await fetch('/api/export/csv');
-
-        if (!res.ok) {
-            const err = await res.json();
-            alert('❌ ' + (err.error || '匯出失敗'));
-            btnCSV.disabled = false;
-            btnCSV.textContent = '📊 CSV';
-            return;
+            stageDisplay.textContent = STATE.stage;
+            trainCountDisplay.textContent = STATE.trainingCount;
         }
 
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `breath-tree-${Date.now()}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // 播放長大動畫
+        function playGrowAnimation() {
+            if (STATE.isGrowing) return;
+            STATE.isGrowing = true;
+            treeSvg.classList.add('grow-glow');
+            log('🌿 長大！');
+            
+            // 記錄長大事件
+            logEvent('grow', { 
+                newStage: STATE.stage,
+                totalTraining: STATE.trainingCount 
+            });
 
-        addDebug(`✅ CSV 下載成功! ${blob.size} bytes`, '#7ab86a');
-        statusMsg.textContent = '✅ CSV 下載成功！';
-    } catch (e) {
-        alert('❌ 下載失敗: ' + e.message);
-        addDebug(`❌ CSV 錯誤: ${e.message}`, '#d46a6a');
-    } finally {
-        btnCSV.disabled = false;
-        btnCSV.textContent = '📊 CSV';
-    }
-}
-
-async function exportJSON() {
-    try {
-        btnJSON.disabled = true;
-        btnJSON.textContent = '⏳ 下載中...';
-        addDebug('📄 匯出 JSON...', '#f5c542');
-
-        const res = await fetch('/api/export/json');
-
-        if (!res.ok) {
-            const err = await res.json();
-            alert('❌ ' + (err.error || '匯出失敗'));
-            btnJSON.disabled = false;
-            btnJSON.textContent = '📄 JSON';
-            return;
+            setTimeout(() => {
+                treeSvg.classList.remove('grow-glow');
+                STATE.isGrowing = false;
+                if (STATE.stage >= STATE.maxStage) {
+                    log('🌸 開花！ 訓練次數：' + STATE.trainingCount);
+                    treeSvg.classList.add('bloom');
+                    
+                    // 記錄開花事件
+                    logEvent('bloom', { 
+                        totalTraining: STATE.trainingCount 
+                    });
+                    
+                    setTimeout(() => treeSvg.classList.remove('bloom'), 1200);
+                }
+                saveToLocal();
+            }, 700);
         }
 
-        const data = await res.json();
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `breath-tree-${Date.now()}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // ==================== 核心呼吸邏輯 ====================
+        function processBreath(value) {
+            const v = Math.min(100, Math.max(0, value));
+            STATE.breathValue = v;
+            meterFill.style.width = v + '%';
+            breathValue.textContent = Math.round(v);
 
-        addDebug(`✅ JSON 下載成功! ${data.records?.length || 0} 筆`, '#7ab86a');
-        statusMsg.textContent = '✅ JSON 下載成功！';
-    } catch (e) {
-        alert('❌ 下載失敗: ' + e.message);
-        addDebug(`❌ JSON 錯誤: ${e.message}`, '#d46a6a');
-    } finally {
-        btnJSON.disabled = false;
-        btnJSON.textContent = '📄 JSON';
-    }
-}
+            if (STATE.isResting || STATE.isGrowing) return;
 
-// ============================================================
-//  診斷
-// ============================================================
-async function diagnose() {
-    try {
-        addDebug('🔍 執行診斷...', '#f5c542');
-        const res = await fetch('/api/diagnose');
-        const data = await res.json();
-        addDebug(`📊 診斷: ${data.total} 筆記錄`, '#7ab86a');
-        alert(
-            '📊 診斷結果:\n\n' +
-            '📁 記錄數量: ' + data.total + '\n\n' +
-            '📝 前3筆:\n' + JSON.stringify(data.sample, null, 2)
-        );
-    } catch (e) {
-        alert('❌ 診斷失敗: ' + e.message);
-        addDebug(`❌ 診斷失敗: ${e.message}`, '#d46a6a');
-    }
-}
+            // 記錄每次呼吸（取樣頻率不要太高，這裡每 5 次記錄一次）
+            if (Math.random() < 0.1) { // 10% 採樣率
+                logEvent('breath_sample', { 
+                    value: Math.round(v),
+                    threshold: STATE.threshold 
+                });
+            }
 
-// ============================================================
-//  鍵盤控制
-// ============================================================
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' || e.key === 'Down') {
-        e.preventDefault();
-        handleBlow(0.7 + Math.random() * 0.3);
-    }
-});
+            if (v >= STATE.threshold && STATE.stage < STATE.maxStage) {
+                STATE.stage = Math.min(STATE.stage + 1, STATE.maxStage);
+                STATE.trainingCount += 1;
+                updateTree();
+                playGrowAnimation();
 
-// ============================================================
-//  事件綁定
-// ============================================================
-btnBlow.addEventListener('click', () => {
-    handleBlow(0.5 + Math.random() * 0.5);
-});
-btnReset.addEventListener('click', resetTree);
-btnCSV.addEventListener('click', exportCSV);
-btnJSON.addEventListener('click', exportJSON);
-btnDiagnose.addEventListener('click', diagnose);
+                if (STATE.stage >= STATE.maxStage) {
+                    startRestPeriod();
+                }
+            } else if (v < STATE.threshold && v > 10) {
+                if (Math.random() < 0.05) {
+                    log('💨 再用力一點！ 目前 ' + Math.round(v) + ' / ' + STATE.threshold);
+                }
+            }
+        }
 
-// ============================================================
-//  模擬 ESP32 數據（測試用）
-// ============================================================
-let esp32Interval = null;
-let esp32Running = false;
+        // ==================== 休息倒數 ====================
+        function startRestPeriod() {
+            if (STATE.isResting) return;
+            STATE.isResting = true;
+            restOverlay.classList.remove('hidden');
+            let remain = STATE.restSeconds;
+            restCountdown.textContent = remain;
+            log('🧘 休息 ' + remain + ' 秒');
 
-// 在除錯模式中隱藏加入「模擬 ESP32」按鈕
-// 實際使用時，會從真實 ESP32 讀取數據
+            // 記錄休息開始
+            logEvent('rest_start', { duration: STATE.restSeconds });
 
-// ============================================================
-//  初始化
-// ============================================================
-async function init() {
-    addDebug('🌳 Breath Tree 啟動 (含降噪機制)', '#7ab86a');
-    updateUI();
-    await updateRecordCount();
-    statusMsg.textContent = '💡 按「吹氣」按鈕或按 ↓ 鍵';
-    addDebug('✅ 初始化完成', '#7ab86a');
-    addDebug('🔍 降噪: 滑動窗口 3/2, Energy 門檻', '#8aaa7a');
-    addDebug('💡 按「除錯」可查看即時日誌', '#8aaa7a');
+            generatePetals();
 
-    // 每10秒更新記錄數
-    setInterval(updateRecordCount, 10000);
-}
+            if (STATE.restTimer) clearInterval(STATE.restTimer);
+            STATE.restTimer = setInterval(() => {
+                remain -= 1;
+                restCountdown.textContent = remain;
+                if (remain <= 0) {
+                    clearInterval(STATE.restTimer);
+                    STATE.restTimer = null;
+                    restOverlay.classList.add('hidden');
+                    STATE.isResting = false;
+                    log('🌬️ 休息結束，繼續呼吸！');
+                    
+                    // 記錄休息結束
+                    logEvent('rest_end', {});
+                }
+            }, 1000);
+        }
 
-init();
+        function generatePetals() {
+            const overlay = restOverlay;
+            overlay.querySelectorAll('.petal-fall').forEach(el => el.remove());
+            for (let i = 0; i < 12; i++) {
+                const petal = document.createElement('div');
+                petal.className = 'petal-fall';
+                petal.textContent = ['🌸','🍂','🌸','🌼','🌸'][Math.floor(Math.random()*5)];
+                petal.style.left = (10 + Math.random() * 70) + '%';
+                petal.style.animationDelay = (Math.random() * 6) + 's';
+                petal.style.fontSize = (1 + Math.random() * 1.2) + 'rem';
+                overlay.appendChild(petal);
+            }
+        }
+
+        // ==================== 存檔 ====================
+        function saveToLocal() {
+            try {
+                const data = {
+                    stage: STATE.stage,
+                    trainingCount: STATE.trainingCount,
+                    timestamp: Date.now(),
+                };
+                localStorage.setItem('breathTreeSave', JSON.stringify(data));
+                
+                // 記錄存檔事件
+                logEvent('save', data);
+            } catch (e) {
+                console.warn('存檔失敗', e);
+            }
+        }
+
+        function loadFromLocal() {
+            try {
+                const raw = localStorage.getItem('breathTreeSave');
+                if (!raw) return false;
+                const data = JSON.parse(raw);
+                STATE.stage = Math.min(data.stage || 0, STATE.maxStage);
+                STATE.trainingCount = data.trainingCount || 0;
+                updateTree();
+                log('📂 讀取存檔 階級=' + STATE.stage + ' 訓練=' + STATE.trainingCount);
+                
+                // 記錄載入事件
+                logEvent('load', data);
+                
+                if (STATE.stage >= STATE.maxStage) {
+                    startRestPeriod();
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        // ==================== 硬體連線 (ESP32) ====================
+        async function connectESP32() {
+            if (STATE.serialConnected) {
+                await disconnectESP32();
+                return;
+            }
+            try {
+                if (!('serial' in navigator)) {
+                    alert('此瀏覽器不支援 Web Serial API，請使用 Chrome/Edge');
+                    return;
+                }
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+                STATE.port = port;
+                STATE.serialConnected = true;
+                connectBtn.textContent = '🔌 斷開 ESP32';
+                log('✅ ESP32 已連線');
+                
+                // 記錄連線事件
+                logEvent('hardware_connected', { type: 'ESP32' });
+
+                const reader = port.readable.getReader();
+                STATE.reader = reader;
+                readLoop(reader);
+            } catch (err) {
+                log('❌ 連線失敗: ' + err.message);
+                logEvent('hardware_error', { error: err.message });
+                alert('無法連線 ESP32\n' + err.message);
+            }
+        }
+
+        async function disconnectESP32() {
+            try {
+                if (STATE.reader) {
+                    await STATE.reader.cancel();
+                    STATE.reader = null;
+                }
+                if (STATE.port) {
+                    await STATE.port.close();
+                    STATE.port = null;
+                }
+                STATE.serialConnected = false;
+                connectBtn.textContent = '🔌 連線 ESP32';
+                log('🔌 已斷開 ESP32');
+                
+                logEvent('hardware_disconnected', {});
+            } catch (e) {
+                console.warn(e);
+            }
+        }
+
+        async function readLoop(reader) {
+            try {
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const text = new TextDecoder().decode(value);
+                    const nums = text.match(/\d+/g);
+                    if (nums) {
+                        const val = parseInt(nums[0], 10);
+                        if (!isNaN(val)) {
+                            processBreath(val);
+                        }
+                    }
+                }
+            } catch (e) {
+                if (e.name !== 'AbortError' && e.name !== 'CancelError') {
+                    log('⚠️ 讀取錯誤: ' + e.message);
+                }
+            } finally {
+                STATE.serialConnected = false;
+                connectBtn.textContent = '🔌 連線 ESP32';
+                log('🔌 連線中斷');
+            }
+        }
+
+        // ==================== 鍵盤模擬 ====================
+        function handleKeyDown(e) {
+            if (e.key === 'ArrowDown' || e.key === 'Down') {
+                e.preventDefault();
+                if (!STATE.keyPressed) {
+                    STATE.keyPressed = true;
+                    STATE.keyStartTime = Date.now();
+                }
+                const elapsed = (Date.now() - STATE.keyStartTime) / 1000;
+                const val = Math.min(100, 20 + elapsed * 40);
+                processBreath(val);
+            }
+        }
+        function handleKeyUp(e) {
+            if (e.key === 'ArrowDown' || e.key === 'Down') {
+                e.preventDefault();
+                STATE.keyPressed = false;
+                processBreath(0);
+            }
+        }
+
+        // ==================== 重置 ====================
+        function resetTree() {
+            if (STATE.isResting) {
+                clearInterval(STATE.restTimer);
+                STATE.restTimer = null;
+                restOverlay.classList.add('hidden');
+                STATE.isResting = false;
+            }
+            
+            // 記錄重置事件
+            logEvent('reset', { 
+                previousStage: STATE.stage,
+                previousTraining: STATE.trainingCount 
+            });
+            
+            STATE.stage = 0;
+            STATE.trainingCount = 0;
+            updateTree();
+            treeSvg.classList.remove('grow-glow', 'bloom');
+            flowerGroup.setAttribute('opacity', '0');
+            log('🌱 樹已重置，重新開始');
+            saveToLocal();
+        }
+
+        // ==================== 初始化 ====================
+        function init() {
+            const hasSave = loadFromLocal();
+            if (!hasSave) {
+                updateTree();
+                // 記錄初始狀態
+                logEvent('init', {});
+            }
+            
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            connectBtn.addEventListener('click', connectESP32);
+            resetTreeBtn.addEventListener('click', resetTree);
+            
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'Down') e.preventDefault();
+            }, { passive: false });
+
+            log('🌳 呼吸養樹已啟動！ 按住 ↓ 或接上 ESP32');
+            
+            // 定期上傳心跳（每 30 秒）
+            setInterval(() => {
+                logEvent('heartbeat', {
+                    stage: STATE.stage,
+                    trainingCount: STATE.trainingCount,
+                    isResting: STATE.isResting,
+                });
+            }, 30000);
+        }
+
+        init();
+    })();
 </script>
 </body>
 </html>
