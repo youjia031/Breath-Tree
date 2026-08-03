@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inhaler Flow Monitor - Ellita</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --COL_BG: #f4f6f8;
+            --COL_PANEL: #ffffff;
+            --COL_ACCENT: #1f4e79;
+            --COL_ACCENT2: #2e7d32;
+            --COL_PATIENT: #c0392b;
+            --COL_TEXT: #2c3e50;
+            --COL_GRID: #d9e1e8;
+            --FONT_FAMILY: "Segoe UI", system-ui, sans-serif;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: var(--FONT_FAMILY);
+            background: var(--COL_BG);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1040px;
+            margin: 0 auto;
+            background: var(--COL_PANEL);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            display: flex;
+            align-items: baseline;
+            gap: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--COL_GRID);
+            margin-bottom: 16px;
+        }
+        .header h1 {
+            color: var(--COL_ACCENT);
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+        .header .subtitle {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px 20px;
+            padding: 16px;
+            background: var(--COL_PANEL);
+            border: 1px solid var(--COL_GRID);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .control-group label {
+            color: var(--COL_TEXT);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        select,
+        input,
+        button {
+            padding: 6px 12px;
+            border: 1px solid #d0d8e0;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: var(--FONT_FAMILY);
+            background: white;
+            color: var(--COL_TEXT);
+        }
+        select:focus,
+        input:focus {
+            outline: none;
+            border-color: var(--COL_ACCENT);
+        }
+        button {
+            cursor: pointer;
+            background: #f0f3f7;
+            transition: all 0.2s;
+            padding: 6px 16px;
+        }
+        button:hover {
+            background: #e1e8ee;
+        }
+        button.primary {
+            background: var(--COL_ACCENT);
+            color: white;
+            border-color: var(--COL_ACCENT);
+            font-weight: bold;
+        }
+        button.primary:hover {
+            background: #163d5e;
+        }
+        button.danger {
+            background: #c0392b;
+            color: white;
+            border-color: #c0392b;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .stats {
+            display: flex;
+            gap: 24px;
+            margin-left: auto;
+            font-size: 14px;
+            color: var(--COL_TEXT);
+        }
+        .stats span {
+            background: #f8fafc;
+            padding: 4px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--COL_GRID);
+        }
+        .stats strong {
+            color: var(--COL_ACCENT);
+        }
+        .chart-container {
+            background: var(--COL_PANEL);
+            border: 1px solid var(--COL_GRID);
+            border-radius: 8px;
+            padding: 8px;
+            margin-bottom: 16px;
+            height: 420px;
+            position: relative;
+        }
+        #flowChart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .status-bar {
+            background: var(--COL_ACCENT);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .status-bar .status-msg {
+            opacity: 0.9;
+        }
+        .status-bar .peak {
+            font-weight: 600;
+        }
+        .compat-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            border: 1px solid #ffc107;
+            display: none;
+        }
+        .compat-warning.show {
+            display: block;
+        }
+        @media (max-width: 700px) {
+            .container {
+                padding: 14px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .stats {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Inhaler Flow Monitor</h1>
+            <span class="subtitle">Acoustic inhaler flow visualization</span>
+        </div>
+
+        <!-- 瀏覽器相容性警告 -->
+        <div class="compat-warning" id="compatWarning">
+            ⚠️ 請使用 <strong>Chrome</strong> 或 <strong>Edge</strong> 瀏覽器開啟此頁面，以支援 Web Serial API。
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="control-group">
+                <label>USB Port</label>
+                <select id="portSelect" style="min-width:180px;"></select>
+                <button id="refreshBtn">Refresh</button>
+                <button id="connectBtn" class="primary">Connect</button>
+            </div>
+            <div class="control-group">
+                <label>Patient ID</label>
+                <input id="patientInput" placeholder="e.g. P001" value="Demo" style="width:120px;">
+            </div>
+            <div class="control-group">
+                <button id="measureBtn">Start</button>
+                <button id="clearBtn">Clear</button>
+                <button id="saveBtn" class="primary">Save CSV</button>
+            </div>
+            <div class="stats">
+                <span>Records: <strong id="recordCount">0</strong></span>
+                <span>Peak: <strong id="peakValue">—</strong> L/min</span>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-container">
+            <canvas id="flowChart"></canvas>
+        </div>
+
+        <!-- Status -->
+        <div class="status-bar">
+            <span class="status-msg" id="statusMsg">Not connected</span>
+            <span class="peak" id="statusPeak"></span>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 檢查瀏覽器支援 Web Serial API
+        // ============================================================
+        (function checkCompatibility() {
+            const warning = document.getElementById('compatWarning');
+            const connectBtn = document.getElementById('connectBtn');
+            const statusMsg = document.getElementById('statusMsg');
+
+            if (!('serial' in navigator)) {
+                warning.classList.add('show');
+                connectBtn.disabled = true;
+                connectBtn.textContent = '不支援';
+                statusMsg.textContent = '⚠️ 請使用 Chrome 或 Edge 瀏覽器';
+                console.warn('Web Serial API not supported');
+            }
+        })();
+
+        // =====================================================
+        //  Ideal waveform (0.5 s per point) - from Python
+        // =====================================================
+        const IDEAL_FLOW = [0, 40, 40, 40, 40, 20, 5, 0, 0, 0];
+        const IDEAL_DT = 0.5;
+
+        // =====================================================
+        //  Smooth curve (from Python)
+        // =====================================================
+        function smoothCurve(xs, ys) {
+            const n = xs.length;
+            if (n < 3) return { x: xs, y: ys };
+            const sm = [];
+            for (let i = 0; i < n; i++) {
+                let lo = Math.max(0, i - 1);
+                let hi = Math.min(n, i + 2);
+                let sum = 0;
+                for (let j = lo; j < hi; j++) {
+                    sum += ys[j];
+                }
+                sm.push(sum / (hi - lo));
+            }
+            return { x: xs, y: sm };
+        }
+
+        // =====================================================
+        //  Generate ideal curve (from Python)
+        // =====================================================
+        function generateIdealCurve() {
+            const xs = IDEAL_FLOW.map((_, i) => i * IDEAL_DT);
+            const ys = [...IDEAL_FLOW];
+            if (xs.length >= 4) {
+                const n = 300;
+                const xnew = [],
+                    ynew = [];
+                const step = (xs[xs.length - 1] - xs[0]) / (n - 1);
+                for (let i = 0; i < n; i++) {
+                    const t = xs[0] + i * step;
+                    xnew.push(t);
+                    let idx = 0;
+                    for (let j = 0; j < xs.length - 1; j++) {
+                        if (t >= xs[j] && t <= xs[j + 1]) {
+                            idx = j;
+                            break;
+                        }
+                        if (j === xs.length - 2) idx = j;
+                    }
+                    const x0 = xs[idx],
+                        x1 = xs[idx + 1];
+                    const y0 = ys[idx],
+                        y1 = ys[idx + 1];
+                    const frac = (t - x0) / (x1 - x0 || 1);
+                    const val = y0 + (y1 - y0) * frac;
+                    ynew.push(Math.max(0, val));
+                }
+                return { x: xnew, y: ynew };
+            }
+            return { x: xs, y: ys };
+        }
+
+        // =====================================================
+        //  Parse functions (from Python)
+        // =====================================================
+        function parseFFT(line) {
+            if (!line.includes('[FFT]')) return null;
+            const bands = {};
+            const regex = /(\d+)k\s*:\s*([-+]?\d*\.?\d+)/g;
+            let m;
+            while ((m = regex.exec(line)) !== null) {
+                const k = parseInt(m[1]);
+                const v = parseFloat(m[2]);
+                if (k >= 1 && k <= 20) {
+                    bands[k] = v;
+                }
+            }
+            return Object.keys(bands).length > 0 ? bands : null;
+        }
+
+        function parseDetect(line) {
+            if (!line.includes('[DETECT]')) return null;
+            const flowMatch = line.match(/Flow\s*=\s*(YES|no)/i);
+            if (!flowMatch) return null;
+            const flow_yes = flowMatch[1].toUpperCase() === 'YES';
+            let est = 0.0;
+            const estMatch = line.match(/Est\s*=\s*([-+]?\d*\.?\d+)/);
+            if (estMatch) est = parseFloat(estMatch[1]) || 0;
+            let low_e = 0;
+            const lowMatch = line.match(/LowEnergy\s*=\s*([-+]?\d+)/);
+            if (lowMatch) low_e = parseInt(lowMatch[1]) || 0;
+            return { flow_yes, est, low_e };
+        }
+
+        // =====================================================
+        //  Main Application (translating Python class)
+        // =====================================================
+        class FlowMonitorApp {
+            constructor() {
+                // State (matching Python)
+                this.window_history = [false, false, false];
+                this.reader = null;
+                this.measuring = false;
+                this.t0 = null;
+                this.started = false;
+                this.times = [];
+                this.flows = [];
+                this.records = [];
+                this.last_fft = null;
+                this.prev_flow_yes = false;
+                this.connected = false;
+                this.port = null;
+
+                // DOM refs
+                this.portSelect = document.getElementById('portSelect');
+                this.refreshBtn = document.getElementById('refreshBtn');
+                this.connectBtn = document.getElementById('connectBtn');
+                this.patientInput = document.getElementById('patientInput');
+                this.measureBtn = document.getElementById('measureBtn');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.saveBtn = document.getElementById('saveBtn');
+                this.statusMsg = document.getElementById('statusMsg');
+                this.recordCount = document.getElementById('recordCount');
+                this.peakValue = document.getElementById('peakValue');
+
+                // Setup
+                this.setupChart();
+                this.refreshPorts();
+                this.bindEvents();
+            }
+
+            // ---------------- Chart Setup ----------------
+            setupChart() {
+                const ctx = document.getElementById('flowChart').getContext('2d');
+                const ideal = generateIdealCurve();
+
+                this.chart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [
+                            {
+                                label: 'Target (ideal)',
+                                data: ideal.x.map((x, i) => ({ x, y: ideal.y[i] })),
+                                borderColor: '#2e7d32',
+                                backgroundColor: 'transparent',
+                                borderDash: [6, 5],
+                                borderWidth: 2.2,
+                                pointRadius: 0,
+                                tension: 0.3,
+                                showLine: true,
+                                fill: false,
+                                order: 1
+                            },
+                            {
+                                label: 'Patient',
+                                data: [],
+                                borderColor: '#c0392b',
+                                backgroundColor: 'rgba(192, 57, 43, 0.05)',
+                                borderWidth: 2.4,
+                                pointRadius: 0,
+                                tension: 0.4,
+                                showLine: true,
+                                fill: true,
+                                order: 0
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: { usePointStyle: true, boxWidth: 10 }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                title: { display: true, text: 'Time (secs)' },
+                                min: 0,
+                                max: 10,
+                                grid: { color: '#d9e1e8' }
+                            },
+                            y: {
+                                title: { display: true, text: 'Flow (L/min)' },
+                                min: 0,
+                                max: 70,
+                                grid: { color: '#d9e1e8' }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ---------------- Ports (from Python) ----------------
+            async refreshPorts() {
+                try {
+                    if (!('serial' in navigator)) {
+                        this.statusMsg.textContent = '⚠️ 瀏覽器不支援 Web Serial API';
+                        return;
+                    }
+                    const ports = await navigator.serial.getPorts();
+                    this.portSelect.innerHTML = '';
+                    if (ports.length === 0) {
+                        const opt = document.createElement('option');
+                        opt.text = 'No COM port found. Check USB connection.';
+                        opt.value = '';
+                        this.portSelect.appendChild(opt);
+                        this.statusMsg.textContent = 'No COM port found. Check USB connection.';
+                        return;
+                    }
+                    for (const p of ports) {
+                        const info = p.getInfo();
+                        const label = info.usbProductId ?
+                            `USB Device (${info.usbVendorId}:${info.usbProductId})` :
+                            'Serial Device';
+                        const opt = document.createElement('option');
+                        opt.value = label;
+                        opt.text = label;
+                        this.portSelect.appendChild(opt);
+                    }
+                    this.portSelect.selectedIndex = 0;
+                    this.statusMsg.textContent = `Found ${ports.length} port(s)`;
+                } catch (e) {
+                    this.statusMsg.textContent = `Error: ${e.message}`;
+                }
+            }
+
+            // ---------------- Connection (from Python) ----------------
+            async toggleConnection() {
+                if (this.connected) {
+                    await this.disconnect();
+                } else {
+                    await this.connect();
+                }
+            }
+
+            async connect() {
+                try {
+                    if (!('serial' in navigator)) {
+                        throw new Error('Web Serial API not supported. Please use Chrome or Edge.');
+                    }
+
+                    let ports = await navigator.serial.getPorts();
+
+                    if (ports.length === 0) {
+                        this.statusMsg.textContent = '請從彈出視窗中選擇您的 USB 裝置...';
+                        const newPort = await navigator.serial.requestPort();
+                        if (!newPort) {
+                            this.statusMsg.textContent = '⚠️ 未選擇任何裝置';
+                            return;
+                        }
+                        ports = await navigator.serial.getPorts();
+                        if (ports.length === 0) {
+                            this.statusMsg.textContent = '⚠️ 無法取得埠列表，請重新整理頁面';
+                            return;
+                        }
+                    }
+
+                    this.port = ports[0];
+                    await this.port.open({ baudRate: 115200 });
+                    this.connected = true;
+
+                    // Reset state (like Python)
+                    this.clearPlot();
+                    this.records = [];
+                    this.last_fft = null;
+                    this.measuring = false;
+                    this.measureBtn.textContent = 'Start';
+                    this.updateRecordCount();
+                    this.prev_flow_yes = false;
+                    this.window_history = [false, false, false];
+
+                    this.connectBtn.textContent = 'Disconnect';
+                    this.connectBtn.className = 'danger';
+                    this.portSelect.disabled = true;
+                    this.refreshBtn.disabled = true;
+                    this.statusMsg.textContent = '✅ 已連線，等待數據...';
+
+                    this.startReading();
+
+                } catch (e) {
+                    this.statusMsg.textContent = `❌ 連線失敗: ${e.message}`;
+                    console.error('Connection error:', e);
+                }
+            }
+
+            async disconnect() {
+                if (this.reader) {
+                    try {
+                        await this.reader.cancel();
+                    } catch (e) {}
+                    this.reader = null;
+                }
+                if (this.port) {
+                    try {
+                        await this.port.close();
+                    } catch (e) {}
+                    this.port = null;
+                }
+                this.connected = false;
+                this.connectBtn.textContent = 'Connect';
+                this.connectBtn.className = 'primary';
+                this.portSelect.disabled = false;
+                this.refreshBtn.disabled = false;
+                this.statusMsg.textContent = '已斷線';
+            }
+
+            // ---------------- Reading (from Python SerialReader) ----------------
+            async startReading() {
+                if (!this.port) return;
+
+                const reader = this.port.readable.getReader();
+                this.reader = reader;
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+
+                try {
+                    while (true) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        buffer += chunk;
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed) {
+                                this.handleLine(trimmed);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    if (e.name !== 'AbortError') {
+                        console.warn('Read error:', e);
+                        this.statusMsg.textContent = `讀取錯誤: ${e.message}`;
+                    }
+                }
+            }
+
+            // ---------------- Handle Line (from Python _handle_line) ----------------
+            handleLine(line) {
+                if (!this.measuring) return;
+
+                const fft = parseFFT(line);
+                if (fft) {
+                    this.last_fft = fft;
+                    return;
+                }
+
+                const det = parseDetect(line);
+                if (!det) return;
+
+                let { flow_yes, est, low_e } = det;
+
+                // -------------------------------------------------
+                // 1. Noise filtering (from Python)
+                // -------------------------------------------------
+                let is_candidate = false;
+                if (flow_yes || (low_e > 800000 && est > 0.0)) {
+                    is_candidate = true;
+                }
+                if (this.last_fft) {
+                    if ((this.last_fft[1] || 0) > 800000 && (this.last_fft[8] || 0) < 50000) {
+                        is_candidate = false;
+                    }
+                }
+
+                // -------------------------------------------------
+                // 2. Sliding window majority (from Python)
+                // -------------------------------------------------
+                this.window_history.shift();
+                this.window_history.push(is_candidate);
+                const true_count = this.window_history.filter(x => x === true).length;
+
+                if (true_count >= 2) {
+                    flow_yes = true;
+                    if (est === 0.0 && low_e > 1000000) {
+                        est = 15.0;
+                    }
+                } else {
+                    flow_yes = false;
+                    est = 0.0;
+                }
+
+                // -------------------------------------------------
+                // 3. Record data (from Python)
+                // -------------------------------------------------
+                const now = Date.now() / 1000;
+                const ts = new Date().toISOString().slice(0, -1);
+                const elapsed = this.t0 !== null ? (now - this.t0) : 0;
+
+                this.records.push({
+                    timestamp: ts,
+                    elapsed: elapsed,
+                    flow: flow_yes,
+                    est: est,
+                    low_energy: low_e,
+                    fft: this.last_fft || {}
+                });
+                this.updateRecordCount();
+
+                // -------------------------------------------------
+                // 4. Start plotting logic (from Python)
+                // -------------------------------------------------
+                if (!this.started) {
+                    if (flow_yes && this.prev_flow_yes) {
+                        this.started = true;
+                        this.t0 = now;
+                        if (this.records.length >= 2) {
+                            this.records[this.records.length - 2].elapsed = 0;
+                            this.records[this.records.length - 1].elapsed = 0;
+                            this.times = [0, 0];
+                            this.flows = [
+                                this.records[this.records.length - 2].est,
+                                this.records[this.records.length - 1].est
+                            ];
+                        } else {
+                            this.times = [0];
+                            this.flows = [est];
+                        }
+                        this.statusMsg.textContent = 'Inhalation detected.';
+                        this.prev_flow_yes = flow_yes;
+                        this.redraw();
+                        return;
+                    }
+                    this.prev_flow_yes = flow_yes;
+                    return;
+                }
+
+                this.prev_flow_yes = flow_yes;
+                const t = now - this.t0;
+                this.times.push(t);
+                this.flows.push(est);
+                this.redraw();
+            }
+
+            // ---------------- UI Updates (from Python) ----------------
+            updateRecordCount() {
+                this.recordCount.textContent = this.records.length;
+            }
+
+            redraw() {
+                if (!this.chart) return;
+
+                const ds = this.chart.data.datasets;
+                let xs = this.times.slice();
+                let ys = this.flows.slice();
+
+                if (xs.length >= 3) {
+                    const smoothed = smoothCurve(xs, ys);
+                    xs = smoothed.x;
+                    ys = smoothed.y;
+                }
+
+                ds[1].data = xs.map((x, i) => ({ x, y: ys[i] || 0 }));
+
+                if (this.times.length > 0) {
+                    const xmax = Math.max(10, this.times[this.times.length - 1] + 1);
+                    this.chart.options.scales.x.max = xmax;
+                }
+                if (this.flows.length > 0) {
+                    const ymax = Math.max(70, Math.max(...this.flows) * 1.2);
+                    this.chart.options.scales.y.max = ymax;
+                    const peak = Math.max(...this.flows);
+                    this.peakValue.textContent = peak.toFixed(1) + ' L/min';
+                }
+                this.chart.update('none');
+            }
+
+            // ---------------- Controls (from Python) ----------------
+            toggleMeasuring() {
+                this.measuring = !this.measuring;
+                if (this.measuring) {
+                    this.measureBtn.textContent = 'Stop';
+                    this.measureBtn.className = 'danger';
+                    this.statusMsg.textContent = 'Measuring...';
+                } else {
+                    this.measureBtn.textContent = 'Start';
+                    this.measureBtn.className = '';
+                    this.statusMsg.textContent = 'Measurement stopped (waveform frozen).';
+                }
+            }
+
+            clearPlot() {
+                this.t0 = null;
+                this.started = false;
+                this.times = [];
+                this.flows = [];
+                this.window_history = [false, false, false];
+                this.prev_flow_yes = false;
+                this.records = [];
+                this.last_fft = null;
+
+                if (this.chart) {
+                    this.chart.data.datasets[1].data = [];
+                    this.chart.options.scales.x.max = 10;
+                    this.chart.options.scales.y.max = 70;
+                    this.chart.update('none');
+                }
+                this.updateRecordCount();
+                this.peakValue.textContent = '—';
+                this.statusMsg.textContent = 'Cleared.';
+            }
+
+            saveData() {
+                if (this.records.length === 0) {
+                    alert('No data to save.\nPlease connect and collect data first.');
+                    return;
+                }
+
+                const patient = this.patientInput.value.trim() || 'unknown';
+                const default_name = patient ? `inhaler_data_${patient}` : 'inhaler_data';
+
+                let csv = 'patient_id,timestamp,elapsed_s,flow,est_flow_Lpm,low_energy,';
+                for (let k = 1; k <= 20; k++) csv += `${k}kHz,`;
+                csv = csv.slice(0, -1) + '\n';
+
+                for (const r of this.records) {
+                    const row = [
+                        patient,
+                        r.timestamp,
+                        r.elapsed.toFixed(2),
+                        r.flow ? 'YES' : 'no',
+                        r.est.toFixed(1),
+                        r.low_energy
+                    ];
+                    for (let k = 1; k <= 20; k++) {
+                        row.push(r.fft[k] !== undefined ? r.fft[k] : '');
+                    }
+                    csv += row.join(',') + '\n';
+                }
+
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8-sig' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${default_name}.csv`;
+                link.click();
+
+                this.statusMsg.textContent = `Saved: ${default_name}.csv (${this.records.length} records)`;
+            }
+
+            // ---------------- Event Binding ----------------
+            bindEvents() {
+                this.refreshBtn.addEventListener('click', () => this.refreshPorts());
+                this.connectBtn.addEventListener('click', () => this.toggleConnection());
+                this.measureBtn.addEventListener('click', () => this.toggleMeasuring());
+                this.clearBtn.addEventListener('click', () => this.clearPlot());
+                this.saveBtn.addEventListener('click', () => this.saveData());
+            }
+        }
+
+        // =====================================================
+        //  Main
+        // =====================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            new FlowMonitorApp();
+        });
+    </script>
+</body>
+</html>
