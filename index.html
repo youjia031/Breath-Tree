@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>呼吸養樹 · Breath Tree</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             background: #1a3a2a;
             min-height: 100vh;
             display: flex;
@@ -45,10 +46,12 @@
             transition: all 0.2s;
         }
         button:hover { transform: scale(1.05); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-blow { background: #2a7a3a; color: white; }
         .btn-csv { background: #2a5a7a; color: white; }
         .btn-json { background: #6a2a7a; color: white; }
         .btn-reset { background: #7a3a2a; color: white; }
+        .btn-diagnose { background: #8a7a2a; color: white; }
         .stats {
             display: flex;
             justify-content: center;
@@ -79,6 +82,21 @@
             font-weight: bold;
             margin-top: 10px;
         }
+        .debug-log {
+            background: #0f1a0f;
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #8aaa7a;
+            max-height: 150px;
+            overflow-y: auto;
+            text-align: left;
+            display: none;
+        }
+        .debug-log.show { display: block; }
+        .debug-log .entry { padding: 2px 0; border-bottom: 1px solid #1a2a1a; }
     </style>
 </head>
 <body>
@@ -103,13 +121,44 @@
         <div style="margin-top:10px;">
             <button class="btn-csv" id="btnCSV">📊 CSV</button>
             <button class="btn-json" id="btnJSON">📄 JSON</button>
+            <button class="btn-diagnose" id="btnDiagnose">🔍 診斷</button>
+            <button class="btn-diagnose" id="btnDebug">🐛 除錯</button>
         </div>
         
         <div class="status" id="statusMsg">💡 按「吹氣」讓樹長大</div>
         <div id="bloomMsg" class="bloom-text"></div>
+        
+        <div class="debug-log" id="debugLog"></div>
     </div>
 
     <script>
+        // ============================================================
+        //  除錯日誌
+        // ============================================================
+        let debugVisible = false;
+
+        function addDebug(msg, color = '#8aaa7a') {
+            const log = document.getElementById('debugLog');
+            const entry = document.createElement('div');
+            entry.className = 'entry';
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span style="color:#4a6a4a;">[${time}]</span> <span style="color:${color}">${msg}</span>`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+            console.log('[Debug]', msg);
+        }
+
+        document.getElementById('btnDebug').addEventListener('click', () => {
+            const log = document.getElementById('debugLog');
+            debugVisible = !debugVisible;
+            log.classList.toggle('show');
+            document.getElementById('btnDebug').textContent = debugVisible ? '🐛 關閉' : '🐛 除錯';
+            if (debugVisible) addDebug('📋 除錯模式開啟');
+        });
+
+        // ============================================================
+        //  設定
+        // ============================================================
         const MAX_STAGES = 8;
         let stage = 0;
         let recordCount = 0;
@@ -128,7 +177,11 @@
         const btnReset = document.getElementById('btnReset');
         const btnCSV = document.getElementById('btnCSV');
         const btnJSON = document.getElementById('btnJSON');
+        const btnDiagnose = document.getElementById('btnDiagnose');
 
+        // ============================================================
+        //  UI
+        // ============================================================
         function updateUI() {
             const p = stage / MAX_STAGES;
             progressFill.style.width = (p * 100) + '%';
@@ -146,17 +199,22 @@
                 btnBlow.disabled = true;
                 btnBlow.style.opacity = '0.5';
                 statusMsg.textContent = '🌸 開花完成！點「重種」重新開始';
+                addDebug('🌸 開花啦！', '#ffd966');
             }
         }
 
         async function updateRecordCount() {
             try {
+                addDebug('📊 查詢記錄數...', '#f5c542');
                 const res = await fetch('/api/stats');
                 const data = await res.json();
                 recordCount = data.total || 0;
                 recordCountDisplay.textContent = recordCount;
+                addDebug(`📊 目前 ${recordCount} 筆記錄`, '#7ab86a');
+                return data;
             } catch (e) {
-                console.log('讀取統計失敗:', e);
+                addDebug(`❌ 讀取失敗: ${e.message}`, '#d46a6a');
+                return null;
             }
         }
 
@@ -182,8 +240,14 @@
             }, 1000);
         }
 
+        // ============================================================
+        //  吹氣處理
+        // ============================================================
         async function handleBlow() {
-            if (isFullBloom) return;
+            if (isFullBloom) {
+                addDebug('🌸 已開花，無法吹氣', '#f5c542');
+                return;
+            }
             if (isResting) {
                 statusMsg.textContent = '⏳ 休息中，請稍候...';
                 return;
@@ -192,6 +256,7 @@
             const force = 0.5 + Math.random() * 0.5;
             const isGrow = force >= 0.7;
             
+            addDebug(`💨 吹氣: ${Math.round(force*100)}% ${isGrow ? '🌱 達標' : '⏸️ 未達標'}`, '#8aaa7a');
             statusMsg.textContent = isGrow ? '💨 有效吹氣！' : '💨 再用力一點！';
             
             // 記錄到後端
@@ -207,7 +272,9 @@
                 const data = await res.json();
                 recordCount = data.total || 0;
                 recordCountDisplay.textContent = recordCount;
+                addDebug(`✅ 後端回應: ${recordCount} 筆記錄`, '#7ab86a');
             } catch (e) {
+                addDebug(`❌ 記錄失敗: ${e.message}`, '#d46a6a');
                 console.error('記錄失敗:', e);
             }
 
@@ -219,6 +286,7 @@
                     treeEmoji.classList.add('growing');
                     setTimeout(() => treeEmoji.classList.remove('growing'), 500);
                     updateUI();
+                    addDebug(`🌱 樹長大! 階段 ${stage}/${MAX_STAGES}`, '#f5c542');
                     
                     if (stage >= MAX_STAGES) {
                         isFullBloom = true;
@@ -230,10 +298,14 @@
                     }
                 } else {
                     statusMsg.textContent = '💨 再吹一次！';
+                    addDebug('💨 需要再吹一次', '#8aaa7a');
                 }
             }
         }
 
+        // ============================================================
+        //  重置
+        // ============================================================
         function resetTree() {
             if (restTimer) {
                 clearInterval(restTimer);
@@ -247,20 +319,30 @@
             bloomMsg.textContent = '';
             updateUI();
             statusMsg.textContent = '🌱 新樹苗！';
+            addDebug('🌱 新樹苗', '#8fc87a');
+            updateRecordCount();
         }
 
+        // ============================================================
+        //  匯出 CSV
+        // ============================================================
         async function exportCSV() {
             try {
                 btnCSV.disabled = true;
                 btnCSV.textContent = '⏳ 下載中...';
+                addDebug('📊 匯出 CSV...', '#f5c542');
+                
                 const res = await fetch('/api/export/csv');
+                
                 if (!res.ok) {
                     const err = await res.json();
                     alert('❌ ' + (err.error || '匯出失敗'));
+                    addDebug(`❌ CSV 匯出失敗: ${err.error}`, '#d46a6a');
                     btnCSV.disabled = false;
                     btnCSV.textContent = '📊 CSV';
                     return;
                 }
+                
                 const blob = await res.blob();
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -268,27 +350,38 @@
                 a.download = `breath-tree-${Date.now()}.csv`;
                 a.click();
                 URL.revokeObjectURL(url);
+                
+                addDebug(`✅ CSV 下載成功! ${blob.size} bytes`, '#7ab86a');
                 statusMsg.textContent = '✅ CSV 下載成功！';
             } catch (e) {
                 alert('❌ 下載失敗: ' + e.message);
+                addDebug(`❌ CSV 錯誤: ${e.message}`, '#d46a6a');
             } finally {
                 btnCSV.disabled = false;
                 btnCSV.textContent = '📊 CSV';
             }
         }
 
+        // ============================================================
+        //  匯出 JSON
+        // ============================================================
         async function exportJSON() {
             try {
                 btnJSON.disabled = true;
                 btnJSON.textContent = '⏳ 下載中...';
+                addDebug('📄 匯出 JSON...', '#f5c542');
+                
                 const res = await fetch('/api/export/json');
+                
                 if (!res.ok) {
                     const err = await res.json();
                     alert('❌ ' + (err.error || '匯出失敗'));
+                    addDebug(`❌ JSON 匯出失敗: ${err.error}`, '#d46a6a');
                     btnJSON.disabled = false;
                     btnJSON.textContent = '📄 JSON';
                     return;
                 }
+                
                 const data = await res.json();
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -297,22 +390,41 @@
                 a.download = `breath-tree-${Date.now()}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
+                
+                addDebug(`✅ JSON 下載成功! ${data.records?.length || 0} 筆`, '#7ab86a');
                 statusMsg.textContent = '✅ JSON 下載成功！';
             } catch (e) {
                 alert('❌ 下載失敗: ' + e.message);
+                addDebug(`❌ JSON 錯誤: ${e.message}`, '#d46a6a');
             } finally {
                 btnJSON.disabled = false;
                 btnJSON.textContent = '📄 JSON';
             }
         }
 
-        // 事件綁定
-        btnBlow.addEventListener('click', handleBlow);
-        btnReset.addEventListener('click', resetTree);
-        btnCSV.addEventListener('click', exportCSV);
-        btnJSON.addEventListener('click', exportJSON);
+        // ============================================================
+        //  診斷
+        // ============================================================
+        async function diagnose() {
+            try {
+                addDebug('🔍 執行診斷...', '#f5c542');
+                const res = await fetch('/api/diagnose');
+                const data = await res.json();
+                addDebug(`📊 診斷: ${data.total} 筆記錄`, '#7ab86a');
+                alert(
+                    '📊 診斷結果:\n\n' +
+                    '📁 記錄數量: ' + data.total + '\n\n' +
+                    '📝 前3筆:\n' + JSON.stringify(data.sample, null, 2)
+                );
+            } catch (e) {
+                alert('❌ 診斷失敗: ' + e.message);
+                addDebug(`❌ 診斷失敗: ${e.message}`, '#d46a6a');
+            }
+        }
 
-        // 鍵盤控制
+        // ============================================================
+        //  鍵盤
+        // ============================================================
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowDown' || e.key === 'Down') {
                 e.preventDefault();
@@ -320,12 +432,31 @@
             }
         });
 
-        // 初始化
-        updateUI();
-        updateRecordCount();
-        statusMsg.textContent = '💡 按「吹氣」按鈕或按 ↓ 鍵';
+        // ============================================================
+        //  事件綁定
+        // ============================================================
+        btnBlow.addEventListener('click', handleBlow);
+        btnReset.addEventListener('click', resetTree);
+        btnCSV.addEventListener('click', exportCSV);
+        btnJSON.addEventListener('click', exportJSON);
+        btnDiagnose.addEventListener('click', diagnose);
 
-        console.log('🌳 Breath Tree 已啟動');
+        // ============================================================
+        //  初始化
+        // ============================================================
+        async function init() {
+            addDebug('🌳 Breath Tree 啟動', '#7ab86a');
+            updateUI();
+            await updateRecordCount();
+            statusMsg.textContent = '💡 按「吹氣」按鈕或按 ↓ 鍵';
+            addDebug('✅ 初始化完成', '#7ab86a');
+            addDebug('💡 按「除錯」可查看即時日誌', '#8aaa7a');
+            
+            // 每10秒自動更新記錄數
+            setInterval(updateRecordCount, 10000);
+        }
+
+        init();
     </script>
 </body>
 </html>
